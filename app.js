@@ -187,9 +187,17 @@ document.getElementById('guardar-om').addEventListener('click', async () => {
       omList: arrayUnion(nuevaOM)
     });
   } else {
-    await setDoc(ref, {
-      omList: [nuevaOM]
-    });
+    const docSnap = await getDoc(ref);
+if (docSnap.exists()) {
+  await updateDoc(ref, {
+    omList: arrayUnion(nuevaOM)
+  });
+} else {
+  await setDoc(ref, {
+    omList: [nuevaOM]
+  });
+}
+
   }
 
   modal.style.display = 'none';
