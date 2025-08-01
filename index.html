@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MANTENIMIENTO L2</title>
+  <link rel="stylesheet" href="estilos.css" />
+</head>
+<body>
+  <header>
+    <h1>MANTENIMIENTO LINEA 2</h1>
+    <button id="menu-toggle">☰</button>
+    <nav id="menu" class="hidden">
+      <ul id="menu-list">
+        <!-- Las opciones se llenan por JS -->
+      </ul>
+    </nav>
+  </header>
+  <div id="inicio" style="display: block; text-align: center; padding: 80px;">
+  <h1 class="titulo">Elija una maquina en el menu</h1>
+  <img id="inicio-img" src="imagenes/monster.webp" alt="Imagen de bienvenida" style="max-width:90%; margin-top:20px; border-radius:10px;" />
+</div>
+
+
+
+  <div id="maquinas-container"></div>
+  <!-- Modal para agregar OM -->
+<div id="modal-om" style="
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+">
+  <div style="
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+  ">
+    <h3>Agregar OM</h3>
+    <div id="modal-contenido" style="overflow-y:auto; flex:1; padding-right:5px;">
+      <input id="om-numero" type="number" placeholder="Número de OM" /><br/>
+      <input id="om-titulo" placeholder="Título de la tarea" /><br/>
+      <input id="om-responsables" placeholder="Responsables (separados por coma)" /><br/>
+      <textarea id="om-descripcion" placeholder="Descripción"></textarea><br/>
+
+      <h4>Repuestos</h4>
+      <div id="repuestos-lista"></div>
+      <button id="agregar-repuesto">+ Agregar Repuesto</button>
+    </div>
+
+    <!-- Botones fijos -->
+    <div style="margin-top:10px; display:flex; justify-content:space-between;">
+      <button id="guardar-om">Guardar OM</button>
+      <button id="cerrar-modal">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+  <!-- Firebase + App -->
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
