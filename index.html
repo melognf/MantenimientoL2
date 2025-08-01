@@ -58,7 +58,8 @@
       <input id="om-numero" type="number" placeholder="Número de OM" /><br/>
       <input id="om-titulo" placeholder="Título de la tarea" /><br/>
       <input id="om-responsables" placeholder="Responsables (separados por coma)" /><br/>
-      <textarea id="om-descripcion" placeholder="Descripción"></textarea><br/>
+      <textarea id="om-descripcion" placeholder="Descripción, avances" oninput="autoResize(this)" style="overflow:hidden; resize:none;"></textarea><br/>
+
 
       <h4>Repuestos</h4>
       <div id="repuestos-lista"></div>

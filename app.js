@@ -78,7 +78,8 @@ maquinas.forEach(maquina => {
 
         return `
   <div style="border:1px dashed #000; margin:5px; padding:5px; position:relative">
-    <div style="position:absolute; top:5px; right:5px; display:flex; gap:5px;">
+    <div style="position:absolute; top:5px; right:5px; display:flex; flex-direction:column; gap:5px; align-items:flex-end;">
+
 
       ${om.realizada
         ? `<button disabled style="padding:2px 5px; font-size:12px; background-color:#4CAF50; color:white; border:none; border-radius:3px;">
@@ -153,7 +154,7 @@ cont.style.paddingBottom = "10px";
 cont.innerHTML = `
   <input placeholder="Descripción" class="rep-desc" style="display:block; width:100%; margin-bottom:5px;" />
   <div style="display:flex; gap:5px; align-items:center;">
-    <input type="number" class="rep-cod sin-flechas" placeholder="Código" style="flex:1;" />
+    <input type="number" class="rep-cod sin-flechas" placeholder="SAP" style="flex:1;" />
     <input type="number" placeholder="Cantidad" class="rep-cant" style="width:140px;" />
     <button onclick="this.closest('div.repuesto-item').remove()" style="background:white; color:white; border:none; border-radius:5px; padding:4px 8px;">❌</button>
   </div>
@@ -475,6 +476,18 @@ function renderAroProgreso(maquina, omList = [], hayFallaCritica = false) {
   }
 
   container.appendChild(svg);
+}
+
+function autoResize(textarea) {
+  textarea.style.height = 'auto';
+  textarea.style.height = textarea.scrollHeight + 'px';
+}
+const descripcionTextarea = document.getElementById("om-descripcion");
+if (descripcionTextarea) {
+  descripcionTextarea.addEventListener("input", () => autoResize(descripcionTextarea));
+
+  // También ajustar inmediatamente por si tiene texto ya cargado
+  autoResize(descripcionTextarea);
 }
 
 
