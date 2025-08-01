@@ -78,35 +78,29 @@ maquinas.forEach(maquina => {
 
         return `
   <div style="border:1px dashed #000; margin:5px; padding:5px; position:relative">
-    <div style="position:absolute; top:5px; right:5px; display:flex; flex-direction:column; gap:5px; align-items:flex-end;">
-
-
-      ${om.realizada
-        ? `<button disabled style="padding:2px 5px; font-size:12px; background-color:#4CAF50; color:white; border:none; border-radius:3px;">
-            ✅ Realizada
-          </button>`
-        : `<button onclick="marcarRealizada('${maquina}', ${index})" style="padding:2px 5px; font-size:12px; background-color:#ccc; border:none; border-radius:3px; cursor:pointer;">
-            Realizada ✅
-          </button>`
-      }
-
-      <button onclick="editarOM('${maquina}', ${index})"
-        style="padding:2px 5px; font-size:12px; background-color:#ccc; border:none; border-radius:3px; cursor:pointer;">
-        ✏️
-      </button>
-
-      <button onclick="eliminarOM('${maquina}', ${index})"
-        style="padding:2px 7px; font-size:12px; background-color:#d00; color:#fff; border:none; border-radius:3px; cursor:pointer;">
-        X
-      </button>
-    </div>
-
     <p><strong>OM:</strong> ${om.om}</p>
     <p><strong>${om.titulo}</strong></p>
     <p><em><strong>Responsables:</strong> ${om.responsables || "No asignado"}</em></p>
     <p>${om.descripcion.replace(/\n/g, "<br>")}</p>
     ${repuestosHtml}
-  </div>`;
+
+    <div class="botones-om">
+  <button onclick="editarOM('${maquina}', ${index})">
+    ✏️ Editar
+  </button>
+
+  ${om.realizada
+    ? `<button disabled class="realizada">✅ Realizada</button>`
+    : `<button onclick="marcarRealizada('${maquina}', ${index})">✅ Marcar Realizada</button>`
+  }
+
+  <button onclick="eliminarOM('${maquina}', ${index})" class="eliminar">
+    ❌ Eliminar
+  </button>
+</div>
+
+`;
+
       }).join('');
 
       // 💡 Falla crítica (si hay)
