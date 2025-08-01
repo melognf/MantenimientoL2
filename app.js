@@ -3,7 +3,6 @@ import { db } from './firebase-config.js';
 import {
   doc, setDoc, updateDoc, getDoc, onSnapshot, arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
 // Maquinas
 const maquinas = [
   "LLENADORA", "SEAMER", "FLEETWOOD", "WARMER",
@@ -19,17 +18,18 @@ let maquinaActual = null;
 
 maquinas.forEach(maquina => {
   const div = document.createElement('div');
-div.className = 'maquina estado-verde';
-div.id = `box-${maquina}`;
-div.style.display = "none"; // 🚨 ESTA ES LA LÍNEA NUEVA
-div.innerHTML = `
-  <h2>${maquina}</h2>
-  <button class="btn-om">Agregar OM</button>
-  <button class="btn-falla">Falla Crítica</button>
-  <div id="contenido-${maquina}"></div>
-`;
-container.appendChild(div);
-
+  div.className = 'maquina estado-verde';
+  div.id = `box-${maquina}`;
+  div.style.display = "none";
+  div.innerHTML = `
+    <h2>${maquina}</h2>
+    <div id="progreso-${maquina}" style="margin:10px;"></div>
+    <div id="om-container-${maquina}"></div>
+    <button class="btn-om">Agregar OM</button>
+    <button class="btn-falla">Falla Crítica</button>
+    <div id="contenido-${maquina}"></div>
+  `;
+  container.appendChild(div);
 
   div.querySelector('.btn-om').addEventListener('click', () => {
     maquinaActual = maquina;
@@ -42,18 +42,30 @@ container.appendChild(div);
   onSnapshot(ref, (docSnap) => {
     const box = document.getElementById(`box-${maquina}`);
     const contenido = document.getElementById(`contenido-${maquina}`);
+    
     if (docSnap.exists()) {
       const data = docSnap.data();
+      const tieneFalla = !!(data.fallaTitulo && data.fallaDescripcion);
+      const omList = Array.isArray(data.omList) ? data.omList : [];
 
-      if (data.fallaTitulo && data.fallaDescripcion) {
+      // 💡 Estado de la máquina (rojo, amarillo, verde)
+      if (tieneFalla) {
         box.className = 'maquina estado-rojo';
-      } else if (Array.isArray(data.omList) && data.omList.length > 0) {
-        box.className = 'maquina estado-amarillo';
-      } else {
+      } else if (omList.length === 0 || omList.every(om => om.realizada)) {
         box.className = 'maquina estado-verde';
+      } else {
+        box.className = 'maquina estado-amarillo';
       }
 
-      let omHtml = data.omList?.map((om, index) => {
+      // 💡 Calculo para aro de progreso
+      const total = omList.length;
+      const completadas = omList.filter(om => om.realizada).length;
+
+      renderAroProgreso(maquina, omList, tieneFalla);
+
+
+      // 💡 Generación de HTML para las OM
+      let omHtml = omList.map((om, index) => {
         const repuestosHtml = Array.isArray(om.repuestos) && om.repuestos.length > 0
           ? `<div style="text-align:left; margin-top:5px;">
               <strong>Repuestos:</strong>
@@ -65,48 +77,54 @@ container.appendChild(div);
             </div>` : "";
 
         return `
-        <div style="border:1px dashed #000; margin:5px; padding:5px; position:relative">
-        <div style="position:absolute; top:5px; right:5px; display:flex; gap:5px;">
-        <button onclick="editarOM('${maquina}', ${index})"
+  <div style="border:1px dashed #000; margin:5px; padding:5px; position:relative">
+    <div style="position:absolute; top:5px; right:5px; display:flex; gap:5px;">
+
+      ${om.realizada
+        ? `<button disabled style="padding:2px 5px; font-size:12px; background-color:#4CAF50; color:white; border:none; border-radius:3px;">
+            ✅ Realizada
+          </button>`
+        : `<button onclick="marcarRealizada('${maquina}', ${index})" style="padding:2px 5px; font-size:12px; background-color:#ccc; border:none; border-radius:3px; cursor:pointer;">
+            Realizada ✅
+          </button>`
+      }
+
+      <button onclick="editarOM('${maquina}', ${index})"
         style="padding:2px 5px; font-size:12px; background-color:#ccc; border:none; border-radius:3px; cursor:pointer;">
-       ✏️
-       </button>
-       <button onclick="eliminarOM('${maquina}', ${index})"
-       style="padding:2px 7px; font-size:12px; background-color:#d00; color:#fff; border:none; border-radius:3px; cursor:pointer;">
-       X
+        ✏️
       </button>
-</div>
 
-            <p><strong>OM:</strong> ${om.om}</p>
-            <p><strong>${om.titulo}</strong></p>
-            <p><em><strong>Responsables:</strong> ${om.responsables || "No asignado"}</em></p>
-            <p>${om.descripcion.replace(/\n/g, "<br>")}</p>
-            ${repuestosHtml}
-          </div>
-        `;
-      }).join('') || "";
-
-      contenido.innerHTML = `
-  ${data.fallaTitulo || data.fallaDescripcion ? `
-    <div style="border:2px solid red; padding:10px; margin-top:10px; position:relative; background:white;">
-      <button onclick="eliminarFalla('${maquina}')"
-        style="position:absolute; top:5px; right:5px;
-              padding:2px 6px; font-size:12px;
-              background-color:white; color:red;
-              border:1px solid red; border-radius:3px;
-              cursor:pointer;">
+      <button onclick="eliminarOM('${maquina}', ${index})"
+        style="padding:2px 7px; font-size:12px; background-color:#d00; color:#fff; border:none; border-radius:3px; cursor:pointer;">
         X
       </button>
-      <p><strong>FALLA:</strong> ${data.fallaTitulo}</p>
-      <p>${data.fallaDescripcion}</p>
-    </div>` : ""
-  }
-  ${omHtml}
-`;
+    </div>
 
+    <p><strong>OM:</strong> ${om.om}</p>
+    <p><strong>${om.titulo}</strong></p>
+    <p><em><strong>Responsables:</strong> ${om.responsables || "No asignado"}</em></p>
+    <p>${om.descripcion.replace(/\n/g, "<br>")}</p>
+    ${repuestosHtml}
+  </div>`;
+      }).join('');
+
+      // 💡 Falla crítica (si hay)
+      contenido.innerHTML = `
+        ${tieneFalla ? `
+          <div style="border:2px solid red; padding:10px; margin-top:10px; position:relative; background:white;">
+            <button onclick="eliminarFalla('${maquina}')" style="position:absolute; top:5px; right:5px;
+                  padding:2px 6px; font-size:12px; background-color:white; color:red;
+                  border:1px solid red; border-radius:3px; cursor:pointer;">X</button>
+            <p><strong>FALLA:</strong> ${data.fallaTitulo}</p>
+            <p>${data.fallaDescripcion}</p>
+          </div>` : ""
+        }
+        ${omHtml}
+      `;
     } else {
       box.className = 'maquina estado-verde';
       contenido.innerHTML = '';
+      renderAroProgreso(maquina, 0, 0, false);
     }
   });
 });
@@ -177,20 +195,26 @@ document.getElementById('guardar-om').addEventListener('click', async () => {
   modal.style.display = 'none';
 });
 
-function eliminarOM(maquina, index) {
-  const confirmar = confirm("¿Estás seguro de que querés eliminar esta OM?");
-  if (!confirmar) return;
+async function eliminarOM(maquina, index) {
+  const confirmacion = confirm("¿Estás seguro de eliminar esta orden?");
+  if (!confirmacion) return;
 
-  const ref = doc(db, "maquinas", maquina);
-  getDoc(ref).then(docSnap => {
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      const omList = data.omList || [];
-      omList.splice(index, 1); // elimina la OM en esa posición
-      updateDoc(ref, { omList });
-    }
-  });
+  const docRef = doc(db, "maquinas", maquina);
+  const docSnap = await getDoc(docRef);
+
+  if (docSnap.exists()) {
+    const data = docSnap.data();
+    const omList = Array.isArray(data.omList) ? [...data.omList] : [];
+
+    omList.splice(index, 1); // quita la OM por índice
+
+    await updateDoc(docRef, { omList });
+    console.log(`OM eliminada en ${maquina}, index ${index}`);
+  } else {
+    console.error(`No se encontró el documento de ${maquina}`);
+  }
 }
+
 
 
 // --- FALLA CRÍTICA ---
@@ -228,6 +252,51 @@ function eliminarFalla(maquina) {
   });
   
 }
+
+
+function marcarRealizada(maquina, index) {
+  const ref = doc(db, "maquinas", maquina);
+
+  getDoc(ref).then(docSnap => {
+    if (!docSnap.exists()) {
+      console.error("❌ No se encontró la máquina:", maquina);
+      return;
+    }
+
+    const data = docSnap.data();
+    const omList = Array.isArray(data.omList) ? data.omList : [];
+
+    if (index < 0 || index >= omList.length) {
+      console.error("❌ Índice inválido:", index);
+      return;
+    }
+
+    // Marcar como realizada
+    omList[index] = {
+      ...omList[index],
+      realizada: true
+    };
+
+    updateDoc(ref, { omList })
+      .then(() => {
+        console.log(`✅ OM marcada como realizada: ${omList[index].numero}`);
+
+        // 🔁 Feedback visual en el botón
+        const boton = document.querySelector(`#btn-realizada-${maquina}-${index}`);
+        if (boton) {
+          boton.textContent = "✅ Realizada";
+          boton.disabled = true;
+          boton.style.backgroundColor = "#4CAF50";
+          boton.style.color = "white";
+          boton.style.border = "none";
+        }
+      })
+      .catch(error => {
+        console.error("❌ Error al actualizar Firebase:", error);
+      });
+  });
+}
+
 
 
 // --- NAVEGACIÓN ---
@@ -337,18 +406,87 @@ function editarOM(maquina, index) {
   });
 }
 
-const descripcionInput = document.getElementById('om-descripcion');
-descripcionInput.addEventListener('input', function () {
-  this.style.height = 'auto';
-  this.style.height = this.scrollHeight + 'px';
-});
+function renderAroProgreso(maquina, omList = [], hayFallaCritica = false) {
+  const container = document.getElementById(`progreso-${maquina}`);
+  if (!container) return;
+
+  container.innerHTML = ""; // limpio antes
+
+  const totalOM = omList.length;
+  if (totalOM === 0 && !hayFallaCritica) return;
+
+  const size = 80;
+  const strokeWidth = 10;
+  const radius = (size - strokeWidth) / 2;
+  const center = size / 2;
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", size);
+  svg.setAttribute("height", size);
+  svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
+
+  if (hayFallaCritica) {
+    // 🔴 Aro rojo completo si hay falla crítica
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", center);
+    circle.setAttribute("cy", center);
+    circle.setAttribute("r", radius);
+    circle.setAttribute("fill", "none");
+    circle.setAttribute("stroke", "#FE001A");
+    circle.setAttribute("stroke-width", strokeWidth);
+    svg.appendChild(circle);
+  } else if (totalOM === 1 && !omList[0].realizada) {
+    // 🟡 Caso especial: una sola OM no realizada → aro amarillo completo
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", center);
+    circle.setAttribute("cy", center);
+    circle.setAttribute("r", radius);
+    circle.setAttribute("fill", "none");
+    circle.setAttribute("stroke", "#FFD700");
+    circle.setAttribute("stroke-width", strokeWidth);
+    svg.appendChild(circle);
+  } else {
+    // 🟢🟡 Dividir aro en tramos por cada OM
+    for (let i = 0; i < totalOM; i++) {
+      const startAngle = (i / totalOM) * 360;
+      const endAngle = ((i + 1) / totalOM) * 360;
+      const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+
+      const x1 = center + radius * Math.cos((startAngle - 90) * Math.PI / 180);
+      const y1 = center + radius * Math.sin((startAngle - 90) * Math.PI / 180);
+      const x2 = center + radius * Math.cos((endAngle - 90) * Math.PI / 180);
+      const y2 = center + radius * Math.sin((endAngle - 90) * Math.PI / 180);
+
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke-width", strokeWidth);
+      path.setAttribute("stroke-linecap", "butt");
+
+      const om = omList[i];
+      if (om && om.realizada) {
+        path.setAttribute("stroke", "#4CAF50"); // verde
+      } else {
+        path.setAttribute("stroke", "#FFD700"); // amarillo
+      }
+
+      svg.appendChild(path);
+    }
+  }
+
+  container.appendChild(svg);
+}
 
 
+
+
+// --- EXPORTACIONES NECESARIAS ---
 window.editarOM = editarOM;
 window.eliminarFalla = eliminarFalla;
-window.agregarOM = agregarOM;
 window.eliminarOM = eliminarOM;
+window.marcarRealizada = marcarRealizada;
 window.fallaCritica = fallaCritica;
+
 
 
 

@@ -78,6 +78,7 @@ input.sin-flechas[type=number] {
   padding: 1rem;
   background: #222;
   color: white;
+  border: #ffffff solid 2px;
 }
 
 #menu-toggle {
@@ -198,7 +199,7 @@ input.sin-flechas[type=number] {
 }
 
 .titulo {
-  color: chartreuse;
+  color: #30c0f0;
 }
 
 #inicio {
