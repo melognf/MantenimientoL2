@@ -96,14 +96,14 @@ maquinas.forEach(maquina => {
       </button>
 
       ${om.realizada
-        ? `<button disabled class="boton-om" style="background-color:#4CAF50; color:white;">
-            ✅ <span class="boton-texto">Realizada</span>
-          </button>`
-        : `<button onclick="marcarRealizada('${maquina}', ${index})"
-            class="boton-om">
-            ✅ <span class="boton-texto">Realizada</span>
-          </button>`
-      }
+  ? `<button disabled style="padding:2px 5px; font-size:12px; background-color:#4CAF50; color:white; border:none; border-radius:3px; min-width:85px;">
+        ✅ Realizada
+     </button>`
+  : `<button onclick="marcarRealizada('${maquina}', ${index})" style="padding:2px 5px; font-size:12px; background-color:#ccc; border:none; border-radius:3px; cursor:pointer; min-width:85px;">
+        Realizada ✅
+     </button>`
+}
+
     </div>
   </div>`;
 }).join('');
