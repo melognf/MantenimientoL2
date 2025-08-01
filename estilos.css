@@ -212,32 +212,29 @@ input.sin-flechas[type=number] {
   text-align: center;
 }
 
-.botones-om {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  gap: 5px;
-  margin-top: 10px;
-  flex-wrap: nowrap;
-}
-
-.botones-om button {
-  flex: 1 1 auto;
-  padding: 6px 4px;
+.boton-om {
+  padding: 3px 6px;
   font-size: 12px;
+  background-color: #ccc;
   border: none;
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
-  white-space: nowrap;
-  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 0.2s ease;
 }
 
-.botones-om .realizada {
-  background-color: #4CAF50;
-  color: white;
+.boton-om:hover {
+  background-color: #bbb;
 }
 
-.botones-om .eliminar {
-  background-color: #d00;
-  color: white;
+.boton-texto {
+  display: inline;
+}
+
+@media (max-width: 480px) {
+  .boton-texto {
+    display: none;
+  }
 }

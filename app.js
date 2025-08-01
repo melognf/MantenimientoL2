@@ -66,42 +66,47 @@ maquinas.forEach(maquina => {
 
       // 💡 Generación de HTML para las OM
       let omHtml = omList.map((om, index) => {
-        const repuestosHtml = Array.isArray(om.repuestos) && om.repuestos.length > 0
-          ? `<div style="text-align:left; margin-top:5px;">
-              <strong>Repuestos:</strong>
-              <ul style="padding-left:15px;">
-                ${om.repuestos.map(rep => `
-                  <li><strong>${rep.codigo}</strong> - ${rep.descripcion} (x${rep.cantidad})</li>
-                `).join('')}
-              </ul>
-            </div>` : "";
+  const repuestosHtml = Array.isArray(om.repuestos) && om.repuestos.length > 0
+    ? `<div style="text-align:left; margin-top:5px;">
+        <strong>Repuestos:</strong>
+        <ul style="padding-left:15px;">
+          ${om.repuestos.map(rep => `
+            <li><strong>${rep.codigo}</strong> - ${rep.descripcion} (x${rep.cantidad})</li>
+          `).join('')}
+        </ul>
+      </div>` : "";
 
-        return `
-  <div style="border:1px dashed #000; margin:5px; padding:5px; position:relative">
+  return `
+  <div style="border:1px dashed #000; margin:5px; padding:5px;">
     <p><strong>OM:</strong> ${om.om}</p>
     <p><strong>${om.titulo}</strong></p>
     <p><em><strong>Responsables:</strong> ${om.responsables || "No asignado"}</em></p>
     <p>${om.descripcion.replace(/\n/g, "<br>")}</p>
     ${repuestosHtml}
 
-    <div class="botones-om">
-  <button onclick="editarOM('${maquina}', ${index})">
-    ✏️ Editar
-  </button>
+    <div style="margin-top:10px; display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
+      <button onclick="editarOM('${maquina}', ${index})"
+        class="boton-om">
+        ✏️ <span class="boton-texto">Editar</span>
+      </button>
 
-  ${om.realizada
-    ? `<button disabled class="realizada">✅ Realizada</button>`
-    : `<button onclick="marcarRealizada('${maquina}', ${index})">✅ Marcar Realizada</button>`
-  }
+      <button onclick="eliminarOM('${maquina}', ${index})"
+        class="boton-om" style="background-color:#fff; color:white;">
+        ❌
+      </button>
 
-  <button onclick="eliminarOM('${maquina}', ${index})" class="eliminar">
-    ❌ Eliminar
-  </button>
-</div>
-
-`;
-
-      }).join('');
+      ${om.realizada
+        ? `<button disabled class="boton-om" style="background-color:#4CAF50; color:white;">
+            ✅ <span class="boton-texto">Realizada</span>
+          </button>`
+        : `<button onclick="marcarRealizada('${maquina}', ${index})"
+            class="boton-om">
+            ✅ <span class="boton-texto">Realizada</span>
+          </button>`
+      }
+    </div>
+  </div>`;
+}).join('');
 
       // 💡 Falla crítica (si hay)
       contenido.innerHTML = `
@@ -191,24 +196,23 @@ document.getElementById('guardar-om').addEventListener('click', async () => {
 });
 
 async function eliminarOM(maquina, index) {
-  const confirmacion = confirm("¿Estás seguro de eliminar esta orden?");
-  if (!confirmacion) return;
+  if (!confirm("¿Estás seguro de eliminar esta OM?")) return;
 
-  const docRef = doc(db, "maquinas", maquina);
-  const docSnap = await getDoc(docRef);
+  const ref = doc(db, "maquinas", maquina);
+  const docSnap = await getDoc(ref);
+  
+  if (!docSnap.exists()) return;
 
-  if (docSnap.exists()) {
-    const data = docSnap.data();
-    const omList = Array.isArray(data.omList) ? [...data.omList] : [];
+  const data = docSnap.data();
+  const omList = Array.isArray(data.omList) ? data.omList : [];
 
-    omList.splice(index, 1); // quita la OM por índice
+  // Eliminar la OM por índice
+  omList.splice(index, 1);
 
-    await updateDoc(docRef, { omList });
-    console.log(`OM eliminada en ${maquina}, index ${index}`);
-  } else {
-    console.error(`No se encontró el documento de ${maquina}`);
-  }
+  // Actualizar en Firestore
+  await updateDoc(ref, { omList });
 }
+
 
 
 
