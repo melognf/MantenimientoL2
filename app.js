@@ -1,3 +1,10 @@
+// Protección simple con prompt
+const clave = prompt("Ingrese la contraseña para acceder:");
+if (clave !== "ML2-2025") {
+  alert("Contraseña incorrecta. Acceso denegado.");
+  document.body.innerHTML = "<h2 style='text-align:center; color:red;'>Acceso denegado</h2>";
+  throw new Error("Acceso bloqueado");
+}
 // firebase-config.js debe estar correctamente importado
 import { db } from './firebase-config.js';
 import {
