@@ -1,4 +1,3 @@
-
 body {
   font-family: sans-serif;
   background-color: #f5f5f5;
@@ -56,22 +55,18 @@ p {
   text-align: left;
 }
 
-/* Quitar flechas SOLO en inputs con clase .sin-flechas */
-
-/* Chrome, Edge, Safari */
 input.sin-flechas::-webkit-outer-spin-button,
 input.sin-flechas::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-/* Firefox (versiones recientes y antiguas) */
 input.sin-flechas[type=number] {
-  appearance: textfield; /* estándar */
-  -moz-appearance: textfield; /* compatibilidad */
-  }
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
 
-  header {
+header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -95,7 +90,7 @@ input.sin-flechas[type=number] {
 
 #menu {
   position: absolute;
-  top: 80px; /* o el alto de tu header */
+  top: 80px;
   left: 46%;
   transform: translateX(-50%);
   background: #333;
@@ -105,7 +100,6 @@ input.sin-flechas[type=number] {
   z-index: 1000;
   box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 }
-
 
 #menu ul {
   list-style: none;
@@ -117,7 +111,6 @@ input.sin-flechas[type=number] {
   border-radius: 10px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
-
 
 #menu ul li {
   border-bottom: 1px solid #444;
@@ -134,18 +127,25 @@ input.sin-flechas[type=number] {
   word-break: break-word;
 }
 
-
 #inicio {
-  padding: 4rem;
+  background-color: #444;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 5px;
   text-align: center;
 }
-
-
 
 .mensaje-inicio {
   font-size: 2rem;
   font-weight: bold;
   color: #333;
+}
+
+.titulo {
+  color: #30c0f0;
 }
 
 textarea {
@@ -184,32 +184,15 @@ input, textarea {
   align-items: center;
 }
 
-/* Quitar flechas en Chrome, Safari, Edge */
 input.sin-flechas::-webkit-outer-spin-button,
 input.sin-flechas::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-/* Quitar flechas en Firefox */
 input.sin-flechas[type=number] {
   -moz-appearance: textfield;
   appearance: textfield;
-}
-
-.titulo {
-  color: #30c0f0;
-}
-
-#inicio {
-  background-color: #444;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 5px;
-  text-align: center;
 }
 
 .boton-om {
@@ -236,5 +219,44 @@ input.sin-flechas[type=number] {
 @media (max-width: 480px) {
   .boton-texto {
     display: none;
+  }
+}
+
+/* ══════════════════════════════════════════
+   GRILLA DE OM — DESKTOP
+   ══════════════════════════════════════════ */
+
+/* Mobile: una columna, igual que antes */
+[id^="contenido-"] {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 8px;
+  text-align: left;
+}
+
+/* Desktop ≥ 1024px: 2 columnas, máquina más ancha */
+@media (min-width: 1024px) {
+  .maquina {
+    max-width: 95%;
+  }
+
+  [id^="contenido-"] {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  /* La falla crítica siempre ocupa el ancho completo */
+  [id^="contenido-"] > div[style*="border:2px solid red"],
+  [id^="contenido-"] > div[style*="border: 2px solid red"] {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Pantalla grande ≥ 1440px: 3 columnas */
+@media (min-width: 1440px) {
+  [id^="contenido-"] {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
   }
 }
