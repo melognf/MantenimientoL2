@@ -1,11 +1,11 @@
 // Protección simple con prompt
 (() => {
-  const PASS = 'chespirito';
+  const PASS = 'L3L7';
 
   const entrada = (prompt('Ingrese la contraseña para acceder:') ?? '')
-    .normalize('NFKC')   // normaliza caracteres “raros”
-    .trim()              // saca espacios al inicio/fin
-    .toLowerCase();      // ignora mayúsculas
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase();
 
   if (entrada !== PASS.toLowerCase()) {
     alert('Contraseña incorrecta. Acceso denegado.');
@@ -14,12 +14,12 @@
   }
 })();
 
-// firebase-config.js debe estar correctamente importado
 import { db } from './firebase-config.js';
 import {
   doc, setDoc, updateDoc, getDoc, onSnapshot, arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-// Maquinas
+
+// Máquinas
 const maquinas = [
   "LLENADORA", "SEAMER", "FLEETWOOD", "WARMER",
   "OCME", "DEPALETIZADORA", "PALETIZADORA", "TRANSPORTES"
@@ -27,9 +27,70 @@ const maquinas = [
 
 const container = document.getElementById('maquinas-container');
 const modal = document.getElementById('modal-om');
-const modalContenido = document.getElementById('modal-contenido');
 const repuestosLista = document.getElementById('repuestos-lista');
 
+// --- MODAL FALLA CRÍTICA ---
+// Se inyecta el modal de falla crítica en el body
+const modalFallaHTML = `
+<div id="modal-falla" style="
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+">
+  <div style="
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    max-width: 500px;
+    width: 90%;
+    border-top: 4px solid red;
+  ">
+    <h3 style="color:red;">⚠️ Registrar Falla Crítica</h3>
+    <input id="falla-titulo" placeholder="Título de la falla" style="width:100%; margin-bottom:10px;" /><br/>
+    <textarea id="falla-descripcion" placeholder="Descripción detallada" style="width:100%; min-height:80px; resize:vertical;"></textarea><br/>
+    <div style="margin-top:10px; display:flex; justify-content:space-between;">
+      <button id="guardar-falla" style="background-color:red; color:white; border:none; padding:8px 16px; border-radius:5px; cursor:pointer;">Guardar Falla</button>
+      <button id="cerrar-modal-falla" style="padding:8px 16px; border-radius:5px; cursor:pointer;">Cancelar</button>
+    </div>
+  </div>
+</div>
+`;
+document.body.insertAdjacentHTML('beforeend', modalFallaHTML);
+
+const modalFalla = document.getElementById('modal-falla');
+let maquinaFallaActual = null;
+
+document.getElementById('cerrar-modal-falla').addEventListener('click', () => {
+  modalFalla.style.display = 'none';
+});
+
+document.getElementById('guardar-falla').addEventListener('click', () => {
+  const titulo = document.getElementById('falla-titulo').value.trim();
+  const descripcion = document.getElementById('falla-descripcion').value.trim();
+
+  if (!titulo || !descripcion) {
+    alert('Por favor completá el título y la descripción.');
+    return;
+  }
+
+  const ref = doc(db, "maquinas", maquinaFallaActual);
+  setDoc(ref, { fallaTitulo: titulo, fallaDescripcion: descripcion }, { merge: true })
+    .then(() => {
+      console.log(`✅ Falla crítica registrada para ${maquinaFallaActual}`);
+      modalFalla.style.display = 'none';
+    })
+    .catch(error => {
+      console.error("❌ Error al guardar la falla crítica:", error);
+      alert("Error al guardar la falla crítica.");
+    });
+});
+
+// --- ESTADO MAQUINA ACTUAL ---
 let maquinaActual = null;
 
 maquinas.forEach(maquina => {
@@ -58,13 +119,12 @@ maquinas.forEach(maquina => {
   onSnapshot(ref, (docSnap) => {
     const box = document.getElementById(`box-${maquina}`);
     const contenido = document.getElementById(`contenido-${maquina}`);
-    
+
     if (docSnap.exists()) {
       const data = docSnap.data();
       const tieneFalla = !!(data.fallaTitulo && data.fallaDescripcion);
       const omList = Array.isArray(data.omList) ? data.omList : [];
 
-      // 💡 Estado de la máquina (rojo, amarillo, verde)
       if (tieneFalla) {
         box.className = 'maquina estado-rojo';
       } else if (omList.length === 0 || omList.every(om => om.realizada)) {
@@ -73,58 +133,41 @@ maquinas.forEach(maquina => {
         box.className = 'maquina estado-amarillo';
       }
 
-      // 💡 Calculo para aro de progreso
-      const total = omList.length;
-      const completadas = omList.filter(om => om.realizada).length;
-
       renderAroProgreso(maquina, omList, tieneFalla);
 
-
-      // 💡 Generación de HTML para las OM
       let omHtml = omList.map((om, index) => {
-  const repuestosHtml = Array.isArray(om.repuestos) && om.repuestos.length > 0
-    ? `<div style="text-align:left; margin-top:5px;">
-        <strong>Repuestos:</strong>
-        <ul style="padding-left:15px;">
-          ${om.repuestos.map(rep => `
-            <li><strong>${rep.codigo}</strong> - ${rep.descripcion} (x${rep.cantidad})</li>
-          `).join('')}
-        </ul>
-      </div>` : "";
+        const repuestosHtml = Array.isArray(om.repuestos) && om.repuestos.length > 0
+          ? `<div style="text-align:left; margin-top:5px;">
+              <strong>Repuestos:</strong>
+              <ul style="padding-left:15px;">
+                ${om.repuestos.map(rep => `
+                  <li><strong>${rep.codigo}</strong> - ${rep.descripcion} (x${rep.cantidad})</li>
+                `).join('')}
+              </ul>
+            </div>` : "";
 
-  return `
-  <div style="border:1px dashed #000; margin:5px; padding:5px;">
-    <p><strong>OM:</strong> ${om.om}</p>
-    <p><strong>${om.titulo}</strong></p>
-    <p><em><strong>Responsables:</strong> ${om.responsables || "No asignado"}</em></p>
-    <p>${om.descripcion.replace(/\n/g, "<br>")}</p>
-    ${repuestosHtml}
+        return `
+        <div style="border:1px dashed #000; margin:5px; padding:5px;">
+          <p><strong>OM:</strong> ${om.om}</p>
+          <p><strong>${om.titulo}</strong></p>
+          <p><em><strong>Responsables:</strong> ${om.responsables || "No asignado"}</em></p>
+          <p>${om.descripcion.replace(/\n/g, "<br>")}</p>
+          ${repuestosHtml}
+          <div style="margin-top:10px; display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
+            <button onclick="editarOM('${maquina}', ${index})" class="boton-om">
+              ✏️ <span class="boton-texto">Editar</span>
+            </button>
+            <button onclick="eliminarOM('${maquina}', ${index})" class="boton-om" style="background-color:#fff; color:white;">
+              ❌
+            </button>
+            ${om.realizada
+              ? `<button disabled style="padding:2px 5px; font-size:12px; background-color:#4CAF50; color:white; border:none; border-radius:3px; min-width:85px;">✅ Realizada</button>`
+              : `<button onclick="marcarRealizada('${maquina}', ${index})" style="padding:2px 5px; font-size:12px; background-color:#ccc; border:none; border-radius:3px; cursor:pointer; min-width:85px;">Realizada ✅</button>`
+            }
+          </div>
+        </div>`;
+      }).join('');
 
-    <div style="margin-top:10px; display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
-      <button onclick="editarOM('${maquina}', ${index})"
-        class="boton-om">
-        ✏️ <span class="boton-texto">Editar</span>
-      </button>
-
-      <button onclick="eliminarOM('${maquina}', ${index})"
-        class="boton-om" style="background-color:#fff; color:white;">
-        ❌
-      </button>
-
-      ${om.realizada
-  ? `<button disabled style="padding:2px 5px; font-size:12px; background-color:#4CAF50; color:white; border:none; border-radius:3px; min-width:85px;">
-        ✅ Realizada
-     </button>`
-  : `<button onclick="marcarRealizada('${maquina}', ${index})" style="padding:2px 5px; font-size:12px; background-color:#ccc; border:none; border-radius:3px; cursor:pointer; min-width:85px;">
-        Realizada ✅
-     </button>`
-}
-
-    </div>
-  </div>`;
-}).join('');
-
-      // 💡 Falla crítica (si hay)
       contenido.innerHTML = `
         ${tieneFalla ? `
           <div style="border:2px solid red; padding:10px; margin-top:10px; position:relative; background:white;">
@@ -140,7 +183,7 @@ maquinas.forEach(maquina => {
     } else {
       box.className = 'maquina estado-verde';
       contenido.innerHTML = '';
-      renderAroProgreso(maquina, 0, 0, false);
+      renderAroProgreso(maquina, [], false);
     }
   });
 });
@@ -153,6 +196,11 @@ function abrirModalOM() {
   document.getElementById('om-responsables').value = '';
   document.getElementById('om-descripcion').value = '';
   repuestosLista.innerHTML = '';
+
+  // Restaurar el botón guardar a su comportamiento original (agregar)
+  const btnGuardar = document.getElementById('guardar-om');
+  btnGuardar.onclick = guardarNuevaOM;
+
   modal.style.display = 'flex';
 }
 
@@ -162,26 +210,23 @@ document.getElementById('cerrar-modal').addEventListener('click', () => {
 
 document.getElementById('agregar-repuesto').addEventListener('click', () => {
   const cont = document.createElement("div");
-cont.style.marginBottom = "10px";
-cont.style.borderBottom = "1px solid #ccc";
-cont.style.paddingBottom = "10px";
-
-cont.innerHTML = `
-  <input placeholder="Descripción" class="rep-desc" style="display:block; width:100%; margin-bottom:5px;" />
-  <div style="display:flex; gap:5px; align-items:center;">
-    <input type="number" class="rep-cod sin-flechas" placeholder="SAP" style="flex:1;" />
-    <input type="number" placeholder="Cantidad" class="rep-cant" style="width:140px;" />
-    <button onclick="this.closest('div.repuesto-item').remove()" style="background:white; color:white; border:none; border-radius:5px; padding:4px 8px;">❌</button>
-  </div>
-`;
-
-cont.classList.add("repuesto-item");
-document.getElementById("repuestos-lista").appendChild(cont);
-
+  cont.style.marginBottom = "10px";
+  cont.style.borderBottom = "1px solid #ccc";
+  cont.style.paddingBottom = "10px";
+  cont.classList.add("repuesto-item");
+  cont.innerHTML = `
+    <input placeholder="Descripción" class="rep-desc" style="display:block; width:100%; margin-bottom:5px;" />
+    <div style="display:flex; gap:5px; align-items:center;">
+      <input type="number" class="rep-cod sin-flechas" placeholder="SAP" style="flex:1;" />
+      <input type="number" placeholder="Cantidad" class="rep-cant" style="width:140px;" />
+      <button onclick="this.closest('.repuesto-item').remove()" style="background:white; color:white; border:none; border-radius:5px; padding:4px 8px;">❌</button>
+    </div>
+  `;
+  document.getElementById("repuestos-lista").appendChild(cont);
 });
 
-
-document.getElementById('guardar-om').addEventListener('click', async () => {
+// FIX 1: guardar nueva OM sin doble getDoc
+async function guardarNuevaOM() {
   const om = document.getElementById('om-numero').value.trim();
   const titulo = document.getElementById('om-titulo').value.trim();
   const responsables = document.getElementById('om-responsables').value.trim();
@@ -193,142 +238,137 @@ document.getElementById('guardar-om').addEventListener('click', async () => {
     cantidad: parseInt(div.querySelector('.rep-cant').value.trim()) || 0
   }));
 
-  const nuevaOM = { om, titulo, responsables, descripcion, repuestos };
+  const nuevaOM = { om, titulo, responsables, descripcion, repuestos, realizada: false };
 
   const ref = doc(db, "maquinas", maquinaActual);
   const snap = await getDoc(ref);
 
   if (snap.exists()) {
-    await updateDoc(ref, {
-      omList: arrayUnion(nuevaOM)
-    });
+    await updateDoc(ref, { omList: arrayUnion(nuevaOM) });
   } else {
-    const docSnap = await getDoc(ref);
-if (docSnap.exists()) {
-  await updateDoc(ref, {
-    omList: arrayUnion(nuevaOM)
-  });
-} else {
-  await setDoc(ref, {
-    omList: [nuevaOM]
-  });
-}
-
+    await setDoc(ref, { omList: [nuevaOM] });
   }
 
   modal.style.display = 'none';
-});
+}
+
+// Asignar comportamiento inicial al botón guardar
+document.getElementById('guardar-om').onclick = guardarNuevaOM;
 
 async function eliminarOM(maquina, index) {
   if (!confirm("¿Estás seguro de eliminar esta OM?")) return;
 
   const ref = doc(db, "maquinas", maquina);
   const docSnap = await getDoc(ref);
-  
+
   if (!docSnap.exists()) return;
 
   const data = docSnap.data();
   const omList = Array.isArray(data.omList) ? data.omList : [];
-
-  // Eliminar la OM por índice
   omList.splice(index, 1);
-
-  // Actualizar en Firestore
   await updateDoc(ref, { omList });
 }
 
-
-
-
-// --- FALLA CRÍTICA ---
+// --- FALLA CRÍTICA CON MODAL (FIX 3) ---
 function fallaCritica(maquina) {
-  const titulo = prompt(`⚠️ Título de la falla crítica para ${maquina}:`);
-  if (!titulo) return;
-
-  const descripcion = prompt(`📄 Descripción detallada de la falla:`);
-  if (!descripcion) return;
-
-  const ref = doc(db, "maquinas", maquina);
-  setDoc(ref, {
-    fallaTitulo: titulo,
-    fallaDescripcion: descripcion
-  }, { merge: true })
-  .then(() => {
-    console.log(`✅ Falla crítica registrada para ${maquina}`);
-  })
-  .catch((error) => {
-    console.error("❌ Error al guardar la falla crítica:", error);
-    alert("Error al guardar la falla crítica.");
-  });
+  maquinaFallaActual = maquina;
+  document.getElementById('falla-titulo').value = '';
+  document.getElementById('falla-descripcion').value = '';
+  modalFalla.style.display = 'flex';
 }
-
-
 
 function eliminarFalla(maquina) {
-  const confirmar = confirm("¿Estás seguro de que querés eliminar la Falla Crítica?");
-  if (!confirmar) return;
-
+  if (!confirm("¿Estás seguro de que querés eliminar la Falla Crítica?")) return;
   const ref = doc(db, "maquinas", maquina);
-  updateDoc(ref, {
-    fallaTitulo: "",
-    fallaDescripcion: ""
-  });
-  
+  updateDoc(ref, { fallaTitulo: "", fallaDescripcion: "" });
 }
-
 
 function marcarRealizada(maquina, index) {
   const ref = doc(db, "maquinas", maquina);
 
   getDoc(ref).then(docSnap => {
-    if (!docSnap.exists()) {
-      console.error("❌ No se encontró la máquina:", maquina);
-      return;
-    }
+    if (!docSnap.exists()) return;
 
     const data = docSnap.data();
     const omList = Array.isArray(data.omList) ? data.omList : [];
 
-    if (index < 0 || index >= omList.length) {
-      console.error("❌ Índice inválido:", index);
-      return;
-    }
+    if (index < 0 || index >= omList.length) return;
 
-    // Marcar como realizada
-    omList[index] = {
-      ...omList[index],
-      realizada: true
-    };
+    omList[index] = { ...omList[index], realizada: true };
 
-    updateDoc(ref, { omList })
-      .then(() => {
-        console.log(`✅ OM marcada como realizada: ${omList[index].numero}`);
-
-        // 🔁 Feedback visual en el botón
-        const boton = document.querySelector(`#btn-realizada-${maquina}-${index}`);
-        if (boton) {
-          boton.textContent = "✅ Realizada";
-          boton.disabled = true;
-          boton.style.backgroundColor = "#4CAF50";
-          boton.style.color = "white";
-          boton.style.border = "none";
-        }
-      })
-      .catch(error => {
-        console.error("❌ Error al actualizar Firebase:", error);
-      });
+    updateDoc(ref, { omList });
   });
 }
 
+// FIX 2 + 4: editarOM definida una sola vez, preserva campo 'realizada'
+function editarOM(maquina, index) {
+  const ref = doc(db, "maquinas", maquina);
+  getDoc(ref).then(docSnap => {
+    if (!docSnap.exists()) return;
 
+    const data = docSnap.data();
+    const om = data.omList?.[index];
+    if (!om) return;
+
+    document.getElementById("om-numero").value = om.om || "";
+    document.getElementById("om-titulo").value = om.titulo || "";
+    document.getElementById("om-responsables").value = om.responsables || "";
+    document.getElementById("om-descripcion").value = om.descripcion || "";
+
+    const lista = document.getElementById("repuestos-lista");
+    lista.innerHTML = "";
+    (om.repuestos || []).forEach(rep => {
+      const div = document.createElement("div");
+      div.classList.add("repuesto-item");
+      div.style.marginBottom = "10px";
+      div.style.borderBottom = "1px solid #ccc";
+      div.style.paddingBottom = "10px";
+      div.innerHTML = `
+        <input placeholder="Descripción" class="rep-desc" value="${rep.descripcion || ""}" style="display:block; width:100%; margin-bottom:5px;" />
+        <div style="display:flex; gap:5px; align-items:center;">
+          <input type="number" class="rep-cod sin-flechas" placeholder="SAP" value="${rep.codigo || ""}" style="flex:1;" />
+          <input type="number" placeholder="Cantidad" class="rep-cant" value="${rep.cantidad || 1}" style="width:140px;" />
+          <button onclick="this.closest('.repuesto-item').remove()" style="background:white; border:none; border-radius:5px; padding:4px 8px;">❌</button>
+        </div>
+      `;
+      lista.appendChild(div);
+    });
+
+    document.getElementById("modal-om").style.display = "flex";
+
+    // FIX 2: al guardar la edición, se preserva el campo 'realizada'
+    const btnGuardar = document.getElementById("guardar-om");
+    btnGuardar.onclick = () => {
+      const nuevoOM = {
+        om: document.getElementById("om-numero").value.trim(),
+        titulo: document.getElementById("om-titulo").value.trim(),
+        responsables: document.getElementById("om-responsables").value.trim(),
+        descripcion: document.getElementById("om-descripcion").value.trim(),
+        realizada: om.realizada ?? false, // ← preservado
+        repuestos: Array.from(lista.querySelectorAll('.repuesto-item')).map(div => ({
+          codigo: div.querySelector('.rep-cod').value.trim(),
+          descripcion: div.querySelector('.rep-desc').value.trim(),
+          cantidad: parseInt(div.querySelector('.rep-cant').value.trim()) || 1
+        }))
+      };
+
+      const omList = data.omList ? [...data.omList] : [];
+      omList[index] = nuevoOM;
+
+      updateDoc(ref, { omList }).then(() => {
+        document.getElementById("modal-om").style.display = "none";
+        // Restaurar comportamiento de guardar para nuevas OM
+        document.getElementById("guardar-om").onclick = guardarNuevaOM;
+      });
+    };
+  });
+}
 
 // --- NAVEGACIÓN ---
 const menuList = document.getElementById("menu-list");
-
 menuList.innerHTML = "";
 menuList.innerHTML += `<li><a href="#" data-maquina="INICIO">Inicio</a></li>`;
 menuList.innerHTML += `<li><a href="#" data-maquina="TODAS">Todas</a></li>`;
-
 maquinas.forEach(maquina => {
   menuList.innerHTML += `<li><a href="#" data-maquina="${maquina}">${maquina}</a></li>`;
 });
@@ -351,7 +391,6 @@ function mostrarMaquina(maquina) {
   }
 }
 
-
 menuList.addEventListener("click", (e) => {
   if (e.target.tagName === "A") {
     e.preventDefault();
@@ -365,75 +404,12 @@ document.getElementById("menu-toggle").addEventListener("click", () => {
   document.getElementById("menu").classList.toggle("hidden");
 });
 
-// --- EXPORTACIONES NECESARIAS ---
-window.eliminarOM = eliminarOM;
-window.editarOM = function () { alert("Función editarOM no implementada aún."); };
-window.eliminarFalla = eliminarFalla;
-
-function editarOM(maquina, index) {
-  const ref = doc(db, "maquinas", maquina);
-  getDoc(ref).then(docSnap => {
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      const om = data.omList?.[index];
-      if (!om) return;
-
-      // Cargamos los datos al modal
-      document.getElementById("om-numero").value = om.om || "";
-      document.getElementById("om-titulo").value = om.titulo || "";
-      document.getElementById("om-responsables").value = om.responsables || "";
-      document.getElementById("om-descripcion").value = om.descripcion || "";
-
-      // Repuestos
-      const lista = document.getElementById("repuestos-lista");
-      lista.innerHTML = "";
-      (om.repuestos || []).forEach(rep => {
-        const div = document.createElement("div");
-        div.innerHTML = `
-          <input placeholder="Código" value="${rep.codigo || ""}" />
-          <input placeholder="Descripción" value="${rep.descripcion || ""}" />
-          <input type="number" placeholder="Cantidad" value="${rep.cantidad || 1}" />
-        `;
-        lista.appendChild(div);
-      });
-
-      // Mostramos modal
-      document.getElementById("modal-om").style.display = "flex";
-
-      // Evento guardar modificado para que actualice en lugar de agregar
-      const btnGuardar = document.getElementById("guardar-om");
-      btnGuardar.onclick = () => {
-        const nuevoOM = {
-          om: document.getElementById("om-numero").value,
-          titulo: document.getElementById("om-titulo").value,
-          responsables: document.getElementById("om-responsables").value,
-          descripcion: document.getElementById("om-descripcion").value,
-          repuestos: Array.from(lista.children).map(div => {
-            const inputs = div.querySelectorAll("input");
-            return {
-              codigo: inputs[0].value,
-              descripcion: inputs[1].value,
-              cantidad: parseInt(inputs[2].value) || 1
-            };
-          })
-        };
-
-        const omList = data.omList || [];
-        omList[index] = nuevoOM;
-
-        updateDoc(ref, { omList }).then(() => {
-          document.getElementById("modal-om").style.display = "none";
-        });
-      };
-    }
-  });
-}
-
+// --- PROGRESO SVG ---
 function renderAroProgreso(maquina, omList = [], hayFallaCritica = false) {
   const container = document.getElementById(`progreso-${maquina}`);
   if (!container) return;
 
-  container.innerHTML = ""; // limpio antes
+  container.innerHTML = "";
 
   const totalOM = omList.length;
   if (totalOM === 0 && !hayFallaCritica) return;
@@ -449,7 +425,6 @@ function renderAroProgreso(maquina, omList = [], hayFallaCritica = false) {
   svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
 
   if (hayFallaCritica) {
-    // 🔴 Aro rojo completo si hay falla crítica
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     circle.setAttribute("cx", center);
     circle.setAttribute("cy", center);
@@ -459,7 +434,6 @@ function renderAroProgreso(maquina, omList = [], hayFallaCritica = false) {
     circle.setAttribute("stroke-width", strokeWidth);
     svg.appendChild(circle);
   } else if (totalOM === 1 && !omList[0].realizada) {
-    // 🟡 Caso especial: una sola OM no realizada → aro amarillo completo
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     circle.setAttribute("cx", center);
     circle.setAttribute("cy", center);
@@ -469,7 +443,6 @@ function renderAroProgreso(maquina, omList = [], hayFallaCritica = false) {
     circle.setAttribute("stroke-width", strokeWidth);
     svg.appendChild(circle);
   } else {
-    // 🟢🟡 Dividir aro en tramos por cada OM
     for (let i = 0; i < totalOM; i++) {
       const startAngle = (i / totalOM) * 360;
       const endAngle = ((i + 1) / totalOM) * 360;
@@ -485,14 +458,7 @@ function renderAroProgreso(maquina, omList = [], hayFallaCritica = false) {
       path.setAttribute("fill", "none");
       path.setAttribute("stroke-width", strokeWidth);
       path.setAttribute("stroke-linecap", "butt");
-
-      const om = omList[i];
-      if (om && om.realizada) {
-        path.setAttribute("stroke", "#4CAF50"); // verde
-      } else {
-        path.setAttribute("stroke", "#FFD700"); // amarillo
-      }
-
+      path.setAttribute("stroke", omList[i]?.realizada ? "#4CAF50" : "#FFD700");
       svg.appendChild(path);
     }
   }
@@ -500,34 +466,25 @@ function renderAroProgreso(maquina, omList = [], hayFallaCritica = false) {
   container.appendChild(svg);
 }
 
+// --- AUTO RESIZE TEXTAREA ---
 function autoResize(textarea) {
   textarea.style.height = 'auto';
   textarea.style.height = textarea.scrollHeight + 'px';
 }
+
 const descripcionTextarea = document.getElementById("om-descripcion");
 if (descripcionTextarea) {
   descripcionTextarea.addEventListener("input", () => autoResize(descripcionTextarea));
-
-  // También ajustar inmediatamente por si tiene texto ya cargado
   autoResize(descripcionTextarea);
 }
 
-
-
-
-// --- EXPORTACIONES NECESARIAS ---
+// --- EXPORTS GLOBALES ---
 window.editarOM = editarOM;
 window.eliminarFalla = eliminarFalla;
 window.eliminarOM = eliminarOM;
 window.marcarRealizada = marcarRealizada;
 window.fallaCritica = fallaCritica;
-
-
-
+window.autoResize = autoResize;
 
 // Mostrar pantalla inicial
-// Mostrar pantalla inicial (después de que Firebase termine de cargar)
-setTimeout(() => {
-  mostrarMaquina("INICIO");
-}, 500); // medio segundo suele alcanzar
-
+setTimeout(() => mostrarMaquina("INICIO"), 500);
