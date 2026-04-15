@@ -1,25 +1,150 @@
-// Protección simple con prompt
-(() => {
-  const PASS = 'L3L7';
-
-  const entrada = (prompt('Ingrese la contraseña para acceder:') ?? '')
-    .normalize('NFKC')
-    .trim()
-    .toLowerCase();
-
-  if (entrada !== PASS.toLowerCase()) {
-    alert('Contraseña incorrecta. Acceso denegado.');
-    document.body.innerHTML = "<h2 style='text-align:center; color:red;'>Acceso denegado</h2>";
-    throw new Error('Acceso bloqueado');
-  }
-})();
-
 import { db } from './firebase-config.js';
 import {
   doc, setDoc, updateDoc, getDoc, onSnapshot, arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// Máquinas
+// ══════════════════════════════════════════
+// MODO DE ACCESO
+// ══════════════════════════════════════════
+const PASS_ADMIN = 'L3L7';
+let modoAdmin = false;
+
+// Inyectar pantalla de selección de modo
+const pantallaAccesoHTML = `
+<div id="pantalla-acceso" style="
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: #222;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  gap: 20px;
+">
+  <h2 style="color: white; font-size: 1.4rem; letter-spacing: 2px; margin-bottom: 10px;">
+    MANTENIMIENTO LÍNEA 2
+  </h2>
+  <p style="color: #aaa; font-size: 0.95rem; margin-bottom: 20px;">Seleccioná tu modo de acceso</p>
+
+  <button id="btn-modo-lectura" style="
+    padding: 14px 40px;
+    font-size: 1rem;
+    font-weight: bold;
+    background-color: #444;
+    color: white;
+    border: 2px solid #666;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 240px;
+    transition: background 0.2s;
+  ">👁️ Modo Lectura</button>
+
+  <button id="btn-modo-admin" style="
+    padding: 14px 40px;
+    font-size: 1rem;
+    font-weight: bold;
+    background-color: #FE001A;
+    color: white;
+    border: 2px solid #cc0015;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 240px;
+    transition: background 0.2s;
+  ">🔐 Modo Administrador</button>
+
+  <div id="acceso-pass-container" style="display:none; flex-direction:column; align-items:center; gap:10px; margin-top:10px;">
+    <input id="acceso-pass-input" type="password" placeholder="Contraseña" style="
+      padding: 10px 16px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 2px solid #555;
+      background: #333;
+      color: white;
+      width: 240px;
+      text-align: center;
+    " />
+    <p id="acceso-error" style="color:#ff6666; font-size:0.85rem; display:none;">Contraseña incorrecta</p>
+    <button id="btn-confirmar-admin" style="
+      padding: 10px 30px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      background-color: #FE001A;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 240px;
+    ">Ingresar</button>
+  </div>
+</div>
+`;
+document.body.insertAdjacentHTML('afterbegin', pantallaAccesoHTML);
+
+function cerrarPantallaAcceso() {
+  const pantalla = document.getElementById('pantalla-acceso');
+  pantalla.style.opacity = '0';
+  pantalla.style.transition = 'opacity 0.4s ease';
+  setTimeout(() => pantalla.remove(), 400);
+  aplicarModo();
+}
+
+function aplicarModo() {
+  // Indicador visual en el header
+  const indicador = document.getElementById('indicador-modo');
+  if (indicador) {
+    indicador.textContent = modoAdmin ? '🔐 Admin' : '👁️ Lectura';
+    indicador.style.color = modoAdmin ? '#FE001A' : '#aaa';
+  }
+
+  // Actualizar botones de máquina que ya existen en el DOM
+  actualizarBotonesAdmin();
+}
+
+function actualizarBotonesAdmin() {
+  const display = modoAdmin ? 'inline-block' : 'none';
+  document.querySelectorAll('.btn-om, .btn-falla, .btn-accion-admin').forEach(btn => {
+    btn.style.display = display;
+  });
+}
+
+document.getElementById('btn-modo-lectura').addEventListener('click', () => {
+  modoAdmin = false;
+  cerrarPantallaAcceso();
+});
+
+document.getElementById('btn-modo-admin').addEventListener('click', () => {
+  const cont = document.getElementById('acceso-pass-container');
+  cont.style.display = 'flex';
+  document.getElementById('acceso-pass-input').focus();
+});
+
+function intentarIngresoAdmin() {
+  const entrada = (document.getElementById('acceso-pass-input').value ?? '')
+    .normalize('NFKC').trim();
+  const error = document.getElementById('acceso-error');
+
+  if (entrada === PASS_ADMIN) {
+    modoAdmin = true;
+    error.style.display = 'none';
+    cerrarPantallaAcceso();
+  } else {
+    error.style.display = 'block';
+    document.getElementById('acceso-pass-input').value = '';
+    document.getElementById('acceso-pass-input').focus();
+  }
+}
+
+document.getElementById('btn-confirmar-admin').addEventListener('click', intentarIngresoAdmin);
+
+document.getElementById('acceso-pass-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') intentarIngresoAdmin();
+});
+
+// ══════════════════════════════════════════
+// MÁQUINAS
+// ══════════════════════════════════════════
 const maquinas = [
   "LLENADORA", "SEAMER", "FLEETWOOD", "WARMER",
   "OCME", "DEPALETIZADORA", "PALETIZADORA", "TRANSPORTES"
@@ -29,8 +154,16 @@ const container = document.getElementById('maquinas-container');
 const modal = document.getElementById('modal-om');
 const repuestosLista = document.getElementById('repuestos-lista');
 
+// Inyectar indicador de modo en el header
+const header = document.querySelector('header');
+if (header) {
+  const ind = document.createElement('span');
+  ind.id = 'indicador-modo';
+  ind.style.cssText = 'font-size:0.8rem; font-weight:bold; margin-left:8px;';
+  header.appendChild(ind);
+}
+
 // --- MODAL FALLA CRÍTICA ---
-// Se inyecta el modal de falla crítica en el body
 const modalFallaHTML = `
 <div id="modal-falla" style="
   display: none;
@@ -80,17 +213,14 @@ document.getElementById('guardar-falla').addEventListener('click', () => {
 
   const ref = doc(db, "maquinas", maquinaFallaActual);
   setDoc(ref, { fallaTitulo: titulo, fallaDescripcion: descripcion }, { merge: true })
-    .then(() => {
-      console.log(`✅ Falla crítica registrada para ${maquinaFallaActual}`);
-      modalFalla.style.display = 'none';
-    })
+    .then(() => { modalFalla.style.display = 'none'; })
     .catch(error => {
       console.error("❌ Error al guardar la falla crítica:", error);
       alert("Error al guardar la falla crítica.");
     });
 });
 
-// --- ESTADO MAQUINA ACTUAL ---
+// --- ESTADO MÁQUINA ACTUAL ---
 let maquinaActual = null;
 
 maquinas.forEach(maquina => {
@@ -102,8 +232,8 @@ maquinas.forEach(maquina => {
     <h2>${maquina}</h2>
     <div id="progreso-${maquina}" style="margin:10px;"></div>
     <div id="om-container-${maquina}"></div>
-    <button class="btn-om">Agregar OM</button>
-    <button class="btn-falla">Falla Crítica</button>
+    <button class="btn-om" style="display:none;">Agregar OM</button>
+    <button class="btn-falla" style="display:none;">Falla Crítica</button>
     <div id="contenido-${maquina}"></div>
   `;
   container.appendChild(div);
@@ -146,6 +276,20 @@ maquinas.forEach(maquina => {
               </ul>
             </div>` : "";
 
+        // Botones de acción: siempre se generan, visibilidad la maneja actualizarBotonesAdmin()
+        const botonesAccion = `
+          <button onclick="editarOM('${maquina}', ${index})" class="boton-om btn-accion-admin">
+            ✏️ <span class="boton-texto">Editar</span>
+          </button>
+          <button onclick="eliminarOM('${maquina}', ${index})" class="boton-om btn-accion-admin" style="background-color:#fff; color:white;">
+            ❌
+          </button>
+          ${om.realizada
+            ? `<button disabled style="padding:2px 5px; font-size:12px; background-color:#4CAF50; color:white; border:none; border-radius:3px; min-width:85px;">✅ Realizada</button>`
+            : `<button onclick="marcarRealizada('${maquina}', ${index})" class="btn-accion-admin" style="padding:2px 5px; font-size:12px; background-color:#ccc; border:none; border-radius:3px; cursor:pointer; min-width:85px;">Realizada ✅</button>`
+          }
+        `;
+
         return `
         <div style="border:1px dashed #000; margin:5px; padding:5px;">
           <p><strong>OM:</strong> ${om.om}</p>
@@ -154,26 +298,20 @@ maquinas.forEach(maquina => {
           <p>${om.descripcion.replace(/\n/g, "<br>")}</p>
           ${repuestosHtml}
           <div style="margin-top:10px; display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
-            <button onclick="editarOM('${maquina}', ${index})" class="boton-om">
-              ✏️ <span class="boton-texto">Editar</span>
-            </button>
-            <button onclick="eliminarOM('${maquina}', ${index})" class="boton-om" style="background-color:#fff; color:white;">
-              ❌
-            </button>
-            ${om.realizada
-              ? `<button disabled style="padding:2px 5px; font-size:12px; background-color:#4CAF50; color:white; border:none; border-radius:3px; min-width:85px;">✅ Realizada</button>`
-              : `<button onclick="marcarRealizada('${maquina}', ${index})" style="padding:2px 5px; font-size:12px; background-color:#ccc; border:none; border-radius:3px; cursor:pointer; min-width:85px;">Realizada ✅</button>`
-            }
+            ${botonesAccion}
           </div>
         </div>`;
       }).join('');
 
+      // Botón X de falla: siempre se genera, visibilidad la maneja actualizarBotonesAdmin()
+      const botonEliminarFalla = `<button onclick="eliminarFalla('${maquina}')" class="btn-accion-admin" style="position:absolute; top:5px; right:5px;
+            padding:2px 6px; font-size:12px; background-color:white; color:red;
+            border:1px solid red; border-radius:3px; cursor:pointer;">X</button>`;
+
       contenido.innerHTML = `
         ${tieneFalla ? `
           <div style="border:2px solid red; padding:10px; margin-top:10px; position:relative; background:white;">
-            <button onclick="eliminarFalla('${maquina}')" style="position:absolute; top:5px; right:5px;
-                  padding:2px 6px; font-size:12px; background-color:white; color:red;
-                  border:1px solid red; border-radius:3px; cursor:pointer;">X</button>
+            ${botonEliminarFalla}
             <p><strong>FALLA:</strong> ${data.fallaTitulo}</p>
             <p>${data.fallaDescripcion}</p>
           </div>` : ""
@@ -185,6 +323,9 @@ maquinas.forEach(maquina => {
       contenido.innerHTML = '';
       renderAroProgreso(maquina, [], false);
     }
+
+    // Sincronizar visibilidad de botones con el modo actual
+    actualizarBotonesAdmin();
   });
 });
 
@@ -197,7 +338,6 @@ function abrirModalOM() {
   document.getElementById('om-descripcion').value = '';
   repuestosLista.innerHTML = '';
 
-  // Restaurar el botón guardar a su comportamiento original (agregar)
   const btnGuardar = document.getElementById('guardar-om');
   btnGuardar.onclick = guardarNuevaOM;
 
@@ -225,7 +365,6 @@ document.getElementById('agregar-repuesto').addEventListener('click', () => {
   document.getElementById("repuestos-lista").appendChild(cont);
 });
 
-// FIX 1: guardar nueva OM sin doble getDoc
 async function guardarNuevaOM() {
   const om = document.getElementById('om-numero').value.trim();
   const titulo = document.getElementById('om-titulo').value.trim();
@@ -252,7 +391,6 @@ async function guardarNuevaOM() {
   modal.style.display = 'none';
 }
 
-// Asignar comportamiento inicial al botón guardar
 document.getElementById('guardar-om').onclick = guardarNuevaOM;
 
 async function eliminarOM(maquina, index) {
@@ -269,7 +407,6 @@ async function eliminarOM(maquina, index) {
   await updateDoc(ref, { omList });
 }
 
-// --- FALLA CRÍTICA CON MODAL (FIX 3) ---
 function fallaCritica(maquina) {
   maquinaFallaActual = maquina;
   document.getElementById('falla-titulo').value = '';
@@ -285,22 +422,16 @@ function eliminarFalla(maquina) {
 
 function marcarRealizada(maquina, index) {
   const ref = doc(db, "maquinas", maquina);
-
   getDoc(ref).then(docSnap => {
     if (!docSnap.exists()) return;
-
     const data = docSnap.data();
     const omList = Array.isArray(data.omList) ? data.omList : [];
-
     if (index < 0 || index >= omList.length) return;
-
     omList[index] = { ...omList[index], realizada: true };
-
     updateDoc(ref, { omList });
   });
 }
 
-// FIX 2 + 4: editarOM definida una sola vez, preserva campo 'realizada'
 function editarOM(maquina, index) {
   const ref = doc(db, "maquinas", maquina);
   getDoc(ref).then(docSnap => {
@@ -336,7 +467,6 @@ function editarOM(maquina, index) {
 
     document.getElementById("modal-om").style.display = "flex";
 
-    // FIX 2: al guardar la edición, se preserva el campo 'realizada'
     const btnGuardar = document.getElementById("guardar-om");
     btnGuardar.onclick = () => {
       const nuevoOM = {
@@ -344,7 +474,7 @@ function editarOM(maquina, index) {
         titulo: document.getElementById("om-titulo").value.trim(),
         responsables: document.getElementById("om-responsables").value.trim(),
         descripcion: document.getElementById("om-descripcion").value.trim(),
-        realizada: om.realizada ?? false, // ← preservado
+        realizada: om.realizada ?? false,
         repuestos: Array.from(lista.querySelectorAll('.repuesto-item')).map(div => ({
           codigo: div.querySelector('.rep-cod').value.trim(),
           descripcion: div.querySelector('.rep-desc').value.trim(),
@@ -357,7 +487,6 @@ function editarOM(maquina, index) {
 
       updateDoc(ref, { omList }).then(() => {
         document.getElementById("modal-om").style.display = "none";
-        // Restaurar comportamiento de guardar para nuevas OM
         document.getElementById("guardar-om").onclick = guardarNuevaOM;
       });
     };
